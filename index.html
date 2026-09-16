@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIMAK — Monitoring Akreditasi Program Studi FKIP</title>
+<meta name="description" content="Portal monitoring akreditasi program studi FKIP — data dukung tersinkron dengan Google Sheets & Google Drive.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+<style>
+:root{
+  --em-50:#ecfdf5;--em-100:#d1fae5;--em-600:#059669;--em-700:#047857;--em-800:#065f46;
+  --bg:#f2f9f6;--card:#ffffff;--text:#16302a;--muted:#5c7770;--border:rgba(5,150,105,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0a1411;--card:#111f1a;--text:#d9efe7;--muted:#8ba89e;--border:rgba(52,211,153,.18)}
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+
+/* ==== MODE PENUH LAYAR (default — berfungsi tanpa snippet apa pun) ==== */
+#frameWrap{position:fixed;inset:0;overflow:hidden;background:var(--bg)}
+#appFrame{width:100%;height:100%;border:0;display:block}
+
+/* ==== MODE TINGGI OTOMATIS (aktif bila snippet postMessage terpasang) ==== */
+body.mode-auto{overflow-y:auto}
+body.mode-auto #frameWrap{position:relative;min-height:100vh}
+
+/* ==== Loader ==== */
+#loader{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:var(--bg);transition:opacity .45s}
+#loader.off{opacity:0;pointer-events:none}
+.spin{width:52px;height:52px;border-radius:50%;border:5px solid var(--em-100);border-top-color:var(--em-600);animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ==== Panel setup (muncul bila URL belum diganti) ==== */
+#setup{display:none;max-width:680px;margin:8vh auto;padding:0 1rem 3rem}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:1.1rem;padding:1.6rem 1.7rem;box-shadow:0 12px 32px -18px rgba(5,120,87,.35)}
+.panel h1{font-size:1.2rem;margin:.2rem 0 .6rem}
+.panel code{background:var(--em-50);color:var(--em-800);padding:.15em .45em;border-radius:.4em;font-size:.85em;word-break:break-all}
+@media (prefers-color-scheme:dark){.panel code{background:rgba(16,185,129,.12);color:#6ee7b7}}
+.panel ol{padding-left:1.2rem;line-height:1.75}
+.ico{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#10b981,#047857);display:grid;place-items:center;color:#fff;font-size:1.3rem;margin-bottom:.9rem}
+
+/* ==== Tombol buka di tab baru (opsional) ==== */
+#openTab{position:fixed;right:14px;bottom:14px;z-index:7;display:none;align-items:center;gap:.4rem;padding:.45em .95em;border-radius:2rem;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.75rem;font-weight:700;text-decoration:none;box-shadow:0 8px 20px -10px rgba(5,120,87,.45)}
+#openTab:hover{color:var(--em-700);text-decoration:none}
+</style>
+</head>
+<body>
+
+<!-- Panel panduan: hanya tampil jika CONFIG.WEBAPP_URL belum diganti -->
+<div id="setup">
+  <div class="panel">
+    <div class="ico">🎓</div>
+    <h1>SIMAK — halaman embed belum dikonfigurasi</h1>
+    <p style="color:var(--muted)">File ini berfungsi sebagai <b>pembungkus iframe</b> aplikasi Google Apps Script Anda. Lakukan 3 langkah berikut:</p>
+    <ol>
+      <li>Buka file <code>index.html</code> ini di GitHub (tombol <b>pensil / Edit</b>).</li>
+      <li>Ganti nilai <code>WEBAPP_URL</code> pada bagian <code>CONFIG</code> (awal blok <code>&lt;script&gt;</code>) dengan <b>URL Web App</b> Anda — yang berakhiran <code>/exec</code>.</li>
+      <li>Commit perubahan → tunggu ±1 menit → muat ulang halaman ini.</li>
+    </ol>
+    <p style="color:var(--muted);font-size:.85em">Jika URL sudah benar namun panel ini masih muncul, pastikan tidak ada spasi atau karakter tambahan pada URL.</p>
+  </div>
+</div>
+
+<!-- Pembungkus iframe aplikasi -->
+<div id="frameWrap">
+  <div id="loader">
+    <div class="spin"></div>
+    <div style="font-size:.85rem;font-weight:600;color:var(--muted)">Memuat SIMAK&hellip;</div>
+  </div>
+  <iframe id="appFrame" title="SIMAK — Monitoring Akreditasi FKIP" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen"></iframe>
+</div>
+
+<a id="openTab" href="#" target="_blank" rel="noopener" title="Buka aplikasi di tab baru">&#8599; Buka tab baru</a>
+
+<script>
+/* ============================================================
+   SIMAK — EMBED WRAPPER untuk GitHub Pages
+   ------------------------------------------------------------
+   WAJIB: ganti WEBAPP_URL dengan URL Web App Apps Script Anda.
+          Contoh: https://script.google.com/macros/s/AKfycb.../exec
+
+   HEIGHT_MODE:
+   - 'auto' : tinggi iframe mengikuti tinggi aplikasi (butuh
+              FILE 2 / snippet postMessage terpasang di Apps
+              Script). Tanpa snippet → otomatis fallback penuh layar.
+   - 'full'  : iframe memenuhi layar; aplikasi digulir di dalamnya.
+   ============================================================ */
+const CONFIG = {
+  WEBAPP_URL  : 'GANTI_DENGAN_URL_EXEC_ANDA',
+  HEIGHT_MODE : 'auto',
+  MIN_HEIGHT  : 560,
+  EXTRA       : 0,
+  SHOW_OPEN_TAB : true
+};
+
+(function(){
+  const url = String(CONFIG.WEBAPP_URL || '').trim();
+  const ok  = /^https?:\/\//i.test(url) && !/GANTI|PASTE|YOUR|CONTOH/i.test(url);
+
+  /* URL belum diisi → tampilkan panel panduan, sembunyikan iframe */
+  if (!ok){
+    document.getElementById('setup').style.display = 'block';
+    document.getElementById('frameWrap').style.display = 'none';
+    return;
+  }
+
+  const frame  = document.getElementById('appFrame');
+  const loader = document.getElementById('loader');
+
+  frame.src = url;
+  frame.addEventListener('load', () => {
+    setTimeout(() => loader.classList.add('off'), 350);
+  });
+
+  /* Tombol buka di tab baru (berguna di mobile jika ada kendala embed) */
+  if (CONFIG.SHOW_OPEN_TAB){
+    const tab = document.getElementById('openTab');
+    tab.href = url;
+    tab.style.display = 'inline-flex';
+  }
+
+  /* ---------- Tinggi otomatis (bila snippet postMessage terpasang) ---------- */
+  function trusted(origin){
+    try{
+      const h = new URL(origin).hostname;
+      return h === 'script.google.com'
+          || h.endsWith('.google.com')
+          || h.endsWith('.googleusercontent.com');
+    }catch(e){ return false; }
+  }
+  function applyHeight(h){
+    if (CONFIG.HEIGHT_MODE !== 'auto') return;
+    const px = Math.max(CONFIG.MIN_HEIGHT, Math.min(Math.round(h) + CONFIG.EXTRA, 30000));
+    document.body.classList.add('mode-auto');
+    frame.style.height = px + 'px';
+  }
+  window.addEventListener('message', (e) => {
+    if (!trusted(e.origin)) return;                 /* abaikan pesan dari domain asing */
+    const d = e.data;
+    if (d && d.type === 'simak:height' && typeof d.h === 'number' && isFinite(d.h) && d.h > 0){
+      applyHeight(d.h);
+    }
+  });
+  /* Bila tidak ada pesan tinggi (snippet belum terpasang) → tetap mode
+     penuh layar, yang merupakan tampilan default. Tidak perlu apa-apa. */
+})();
+</script>
+</body>
+</html>
