@@ -8,99 +8,81 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
 <style>
 :root{
-  --em-50:#ecfdf5;--em-100:#d1fae5;--em-600:#059669;--em-700:#047857;--em-800:#065f46;
-  --bg:#f2f9f6;--card:#ffffff;--text:#16302a;--muted:#5c7770;--border:rgba(5,150,105,.18);
+  --em-50:#ecfdf5;--em-100:#d1fae5;--em-600:#059669;--em-700:#047857;
+  --bg:#f2f9f6;--muted:#5c7770;--border:rgba(5,150,105,.18);--card:#ffffff;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0a1411;--card:#111f1a;--text:#d9efe7;--muted:#8ba89e;--border:rgba(52,211,153,.18)}
+  :root{--bg:#0a1411;--muted:#8ba89e;--border:rgba(52,211,153,.18);--card:#111f1a}
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
-body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
 
-/* ==== MODE PENUH LAYAR (default — berfungsi tanpa snippet apa pun) ==== */
+/* Default: iframe memenuhi layar, konten digulir di dalamnya */
 #frameWrap{position:fixed;inset:0;overflow:hidden;background:var(--bg)}
 #appFrame{width:100%;height:100%;border:0;display:block}
 
-/* ==== MODE TINGGI OTOMATIS (aktif bila snippet postMessage terpasang) ==== */
+/* Mode tinggi otomatis (aktif bila snippet postMessage terpasang di Apps Script) */
 body.mode-auto{overflow-y:auto}
 body.mode-auto #frameWrap{position:relative;min-height:100vh}
 
-/* ==== Loader ==== */
+/* Loader */
 #loader{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:var(--bg);transition:opacity .45s}
 #loader.off{opacity:0;pointer-events:none}
 .spin{width:52px;height:52px;border-radius:50%;border:5px solid var(--em-100);border-top-color:var(--em-600);animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* ==== Tombol buka di tab baru (mobile) ==== */
-#openTab{position:fixed;right:14px;bottom:14px;z-index:7;display:none;align-items:center;gap:.4rem;padding:.45em .95em;border-radius:2rem;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.75rem;font-weight:700;text-decoration:none;box-shadow:0 8px 20px -10px rgba(5,120,87,.45)}
+/* Tombol buka di tab baru */
+#openTab{position:fixed;right:14px;bottom:14px;z-index:7;display:inline-flex;align-items:center;gap:.4rem;padding:.45em .95em;border-radius:2rem;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.75rem;font-weight:700;text-decoration:none;box-shadow:0 8px 20px -10px rgba(5,120,87,.45)}
 #openTab:hover{color:var(--em-700);text-decoration:none}
 </style>
 </head>
 <body>
 
-<!-- Pembungkus iframe aplikasi -->
 <div id="frameWrap">
   <div id="loader">
     <div class="spin"></div>
     <div style="font-size:.85rem;font-weight:600;color:var(--muted)">Memuat SIMAK&hellip;</div>
   </div>
-  <iframe id="appFrame" title="SIMAK — Monitoring Akreditasi FKIP" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen"></iframe>
+
+  <!-- ★ URL Web App Anda tertanam LANGSUNG di sini — tidak perlu diedit lagi -->
+  <iframe id="appFrame"
+          src="https://script.google.com/macros/s/AKfycbwz9zi8_cPfwfbERs8qapclMQ3WgftZ5TORv3vhNEOgkNDT8hmrCRfDVd2TooMNUEus/exec"
+          title="SIMAK — Monitoring Akreditasi FKIP"
+          referrerpolicy="no-referrer-when-downgrade"
+          allow="fullscreen"></iframe>
 </div>
 
-<a id="openTab" href="#" target="_blank" rel="noopener" title="Buka aplikasi di tab baru">&#8599; Buka tab baru</a>
+<a id="openTab"
+   href="https://script.google.com/macros/s/AKfycbwz9zi8_cPfwfbERs8qapclMQ3WgftZ5TORv3vhNEOgkNDT8hmrCRfDVd2TooMNUEus/exec"
+   target="_blank" rel="noopener" title="Buka aplikasi di tab baru">&#8599; Buka tab baru</a>
 
 <script>
-/* ============================================================
-   SIMAK — EMBED WRAPPER untuk GitHub Pages
-   WEBAPP_URL sudah diisi dengan URL Apps Script Anda.
-   ============================================================ */
-const CONFIG = {
-  WEBAPP_URL  : 'https://script.google.com/macros/s/AKfycbwz9zi8_cPfwfbERs8qapclMQ3WgftZ5TORv3vhNEOgkNDT8hmrCRfDVd2TooMNUEus/exec',
-  HEIGHT_MODE : 'auto',
-  MIN_HEIGHT  : 560,
-  EXTRA       : 0,
-  SHOW_OPEN_TAB : true
-};
-
 (function(){
-  const url = String(CONFIG.WEBAPP_URL || '').trim();
+  var frame  = document.getElementById('appFrame');
+  var loader = document.getElementById('loader');
 
-  const frame  = document.getElementById('appFrame');
-  const loader = document.getElementById('loader');
-
-  frame.src = url;
-  frame.addEventListener('load', () => {
-    setTimeout(() => loader.classList.add('off'), 350);
+  /* Sembunyikan loader setelah iframe selesai dimuat */
+  frame.addEventListener('load', function(){
+    setTimeout(function(){ loader.classList.add('off'); }, 400);
   });
+  /* Jaring pengaman: tutup loader maksimal 12 detik walau event load tidak terpicu */
+  setTimeout(function(){ loader.classList.add('off'); }, 12000);
 
-  /* Tombol buka di tab baru (berguna di mobile jika ada kendala embed) */
-  if (CONFIG.SHOW_OPEN_TAB){
-    const tab = document.getElementById('openTab');
-    tab.href = url;
-    tab.style.display = 'inline-flex';
-  }
-
-  /* ---------- Tinggi otomatis (bila snippet postMessage terpasang di Apps Script) ---------- */
+  /* ---- Tinggi otomatis (opsional; butuh snippet postMessage di Apps Script) ---- */
   function trusted(origin){
     try{
-      const h = new URL(origin).hostname;
-      return h === 'script.google.com'
-          || h.endsWith('.google.com')
-          || h.endsWith('.googleusercontent.com');
+      var h = new URL(origin).hostname;
+      return h === 'script.google.com' || h.endsWith('.google.com') || h.endsWith('.googleusercontent.com');
     }catch(e){ return false; }
   }
-  function applyHeight(h){
-    if (CONFIG.HEIGHT_MODE !== 'auto') return;
-    const px = Math.max(CONFIG.MIN_HEIGHT, Math.min(Math.round(h) + CONFIG.EXTRA, 30000));
-    document.body.classList.add('mode-auto');
-    frame.style.height = px + 'px';
-  }
-  window.addEventListener('message', (e) => {
+  window.addEventListener('message', function(e){
     if (!trusted(e.origin)) return;
-    const d = e.data;
+    var d = e.data;
     if (d && d.type === 'simak:height' && typeof d.h === 'number' && isFinite(d.h) && d.h > 0){
-      applyHeight(d.h);
+      var px = Math.max(560, Math.min(Math.round(d.h), 30000));
+      document.body.classList.add('mode-auto');
+      frame.style.height = px + 'px';
     }
   });
 })();
