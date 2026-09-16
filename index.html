@@ -32,36 +32,12 @@ body.mode-auto #frameWrap{position:relative;min-height:100vh}
 .spin{width:52px;height:52px;border-radius:50%;border:5px solid var(--em-100);border-top-color:var(--em-600);animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* ==== Panel setup (muncul bila URL belum diganti) ==== */
-#setup{display:none;max-width:680px;margin:8vh auto;padding:0 1rem 3rem}
-.panel{background:var(--card);border:1px solid var(--border);border-radius:1.1rem;padding:1.6rem 1.7rem;box-shadow:0 12px 32px -18px rgba(5,120,87,.35)}
-.panel h1{font-size:1.2rem;margin:.2rem 0 .6rem}
-.panel code{background:var(--em-50);color:var(--em-800);padding:.15em .45em;border-radius:.4em;font-size:.85em;word-break:break-all}
-@media (prefers-color-scheme:dark){.panel code{background:rgba(16,185,129,.12);color:#6ee7b7}}
-.panel ol{padding-left:1.2rem;line-height:1.75}
-.ico{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#10b981,#047857);display:grid;place-items:center;color:#fff;font-size:1.3rem;margin-bottom:.9rem}
-
-/* ==== Tombol buka di tab baru (opsional) ==== */
+/* ==== Tombol buka di tab baru (mobile) ==== */
 #openTab{position:fixed;right:14px;bottom:14px;z-index:7;display:none;align-items:center;gap:.4rem;padding:.45em .95em;border-radius:2rem;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.75rem;font-weight:700;text-decoration:none;box-shadow:0 8px 20px -10px rgba(5,120,87,.45)}
 #openTab:hover{color:var(--em-700);text-decoration:none}
 </style>
 </head>
 <body>
-
-<!-- Panel panduan: hanya tampil jika CONFIG.WEBAPP_URL belum diganti -->
-<div id="setup">
-  <div class="panel">
-    <div class="ico">🎓</div>
-    <h1>SIMAK — halaman embed belum dikonfigurasi</h1>
-    <p style="color:var(--muted)">File ini berfungsi sebagai <b>pembungkus iframe</b> aplikasi Google Apps Script Anda. Lakukan 3 langkah berikut:</p>
-    <ol>
-      <li>Buka file <code>index.html</code> ini di GitHub (tombol <b>pensil / Edit</b>).</li>
-      <li>Ganti nilai <code>WEBAPP_URL</code> pada bagian <code>CONFIG</code> (awal blok <code>&lt;script&gt;</code>) dengan <b>URL Web App</b> Anda — yang berakhiran <code>/exec</code>.</li>
-      <li>Commit perubahan → tunggu ±1 menit → muat ulang halaman ini.</li>
-    </ol>
-    <p style="color:var(--muted);font-size:.85em">Jika URL sudah benar namun panel ini masih muncul, pastikan tidak ada spasi atau karakter tambahan pada URL.</p>
-  </div>
-</div>
 
 <!-- Pembungkus iframe aplikasi -->
 <div id="frameWrap">
@@ -77,15 +53,7 @@ body.mode-auto #frameWrap{position:relative;min-height:100vh}
 <script>
 /* ============================================================
    SIMAK — EMBED WRAPPER untuk GitHub Pages
-   ------------------------------------------------------------
-   WAJIB: ganti WEBAPP_URL dengan URL Web App Apps Script Anda.
-          Contoh: https://script.google.com/macros/s/AKfycb.../exec
-
-   HEIGHT_MODE:
-   - 'auto' : tinggi iframe mengikuti tinggi aplikasi (butuh
-              FILE 2 / snippet postMessage terpasang di Apps
-              Script). Tanpa snippet → otomatis fallback penuh layar.
-   - 'full'  : iframe memenuhi layar; aplikasi digulir di dalamnya.
+   WEBAPP_URL sudah diisi dengan URL Apps Script Anda.
    ============================================================ */
 const CONFIG = {
   WEBAPP_URL  : 'https://script.google.com/macros/s/AKfycbwz9zi8_cPfwfbERs8qapclMQ3WgftZ5TORv3vhNEOgkNDT8hmrCRfDVd2TooMNUEus/exec',
@@ -97,14 +65,6 @@ const CONFIG = {
 
 (function(){
   const url = String(CONFIG.WEBAPP_URL || '').trim();
-  const ok  = /^https?:\/\//i.test(url) && !/GANTI|PASTE|YOUR|CONTOH/i.test(url);
-
-  /* URL belum diisi → tampilkan panel panduan, sembunyikan iframe */
-  if (!ok){
-    document.getElementById('setup').style.display = 'block';
-    document.getElementById('frameWrap').style.display = 'none';
-    return;
-  }
 
   const frame  = document.getElementById('appFrame');
   const loader = document.getElementById('loader');
@@ -121,7 +81,7 @@ const CONFIG = {
     tab.style.display = 'inline-flex';
   }
 
-  /* ---------- Tinggi otomatis (bila snippet postMessage terpasang) ---------- */
+  /* ---------- Tinggi otomatis (bila snippet postMessage terpasang di Apps Script) ---------- */
   function trusted(origin){
     try{
       const h = new URL(origin).hostname;
@@ -137,14 +97,12 @@ const CONFIG = {
     frame.style.height = px + 'px';
   }
   window.addEventListener('message', (e) => {
-    if (!trusted(e.origin)) return;                 /* abaikan pesan dari domain asing */
+    if (!trusted(e.origin)) return;
     const d = e.data;
     if (d && d.type === 'simak:height' && typeof d.h === 'number' && isFinite(d.h) && d.h > 0){
       applyHeight(d.h);
     }
   });
-  /* Bila tidak ada pesan tinggi (snippet belum terpasang) → tetap mode
-     penuh layar, yang merupakan tampilan default. Tidak perlu apa-apa. */
 })();
 </script>
 </body>
